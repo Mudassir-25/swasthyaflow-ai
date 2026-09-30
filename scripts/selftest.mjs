@@ -1,0 +1,18 @@
+import { PHCS, RECORDS, evalRec, kpisOf, buildPlan, statusOf } from '../src/data.js';
+const ok = (c, m) => { if (!c) { console.error('FAIL:', m); process.exitCode = 1; } else console.log('ok  :', m); };
+const base = RECORDS.map((r) => evalRec(r, 1, {})), sim = RECORDS.map((r) => evalRec(r, 1.4, {}));
+const kb = kpisOf(base, 1), ks = kpisOf(sim, 1.4);
+ok(kb.phcs === 248 && PHCS.length === 248, 'Total PHCs 248');
+ok(kb.meds === 42, 'Medicines tracked 42');
+ok(kb.critical === 17, `Critical alerts 17 (got ${kb.critical})`);
+ok(kb.beds === 1284 && PHCS.reduce((a, p) => a + p.beds, 0) === 1284, 'Beds 1,284');
+ok(kb.patients === 8642 && PHCS.reduce((a, p) => a + p.patients, 0) === 8642, "Today's patients 8,642");
+const k = base[0]; ok(k.phcName === 'Krishnagiri PHC' && k.medName === 'ORS' && k.stock === 420 && k.predicted === 145 && k.days === 3 && k.risk === 'CRITICAL', 'Krishnagiri ORS 420 / 145 per day / 3 days / CRITICAL');
+const top = [...base].sort((a, b) => a.exactDays - b.exactDays)[0]; ok(top.id === 0, 'Krishnagiri ORS is the most critical issue');
+const plan = buildPlan(base).find((p) => p.target.id === 0);
+ok(plan && plan.donor.phcName === 'Salem PHC' && plan.qty === 600, `Plan: ${plan?.qty} ORS from ${plan?.donor.phcName} (${plan?.km} km)`);
+console.log(`baseline: ${statusOf(kb.critical)} critical=${kb.critical} high=${kb.high} | sim x1.4: ${statusOf(ks.critical)} critical=${ks.critical} high=${ks.high}`);
+const s50 = kpisOf(RECORDS.map((r) => evalRec(r, 1.5, {})), 1.5), s30 = kpisOf(RECORDS.map((r) => evalRec(r, 1.3, {})), 1.3);
+console.log(`sim x1.3 critical=${s30.critical} | x1.5 critical=${s50.critical}`);
+ok(statusOf(ks.critical) === 'CRITICAL STOCK PRESSURE' && statusOf(kb.critical) === 'NORMAL', 'Emergency flips NORMAL -> CRITICAL STOCK PRESSURE');
+ok(buildPlan(sim).length > 20, `Emergency plan has ${buildPlan(sim).length} transfers`);
